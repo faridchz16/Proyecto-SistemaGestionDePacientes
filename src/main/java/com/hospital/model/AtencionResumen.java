@@ -1,91 +1,57 @@
 package com.hospital.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "atenciones_resumen")
-public class AtencionResumen {
+public class AtencionResumen extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private LocalDateTime fechaAtencion;
+    @NotBlank(message = "La fecha de atención es obligatoria")
+    @Column(name = "fecha_atencion")
+    private String fechaAtencion;
 
-    @Column(nullable = false)
+    @NotBlank(message = "La especialidad es obligatoria")
     private String especialidad;
 
-    @Column(nullable = false)
     private String medico;
 
-    @Column(nullable = false)
-    private String motivo;
+    @Column(length = 1000)
+    private String diagnostico;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "paciente_id", nullable = false)
-    @JsonBackReference
+    /** N atenciones -> 1 paciente. FK: atenciones_resumen.paciente_id -> pacientes.id */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "paciente_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_atencion_paciente"))
+    @JsonIgnore
     private Paciente paciente;
 
-    public AtencionResumen() {
+    @Override
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    @Override
+    public String resumenAuditoria() {
+        return "Atención " + fechaAtencion + " - " + especialidad + " (" + medico + ")";
     }
 
-    public AtencionResumen(Long id, LocalDateTime fechaAtencion, String especialidad, String medico, String motivo, Paciente paciente) {
-        this.id = id;
-        this.fechaAtencion = fechaAtencion;
-        this.especialidad = especialidad;
-        this.medico = medico;
-        this.motivo = motivo;
-        this.paciente = paciente;
-    }
+    public String getFechaAtencion() { return fechaAtencion; }
+    public void setFechaAtencion(String fechaAtencion) { this.fechaAtencion = fechaAtencion; }
 
-    public Long getId() {
-        return id;
-    }
+    public String getEspecialidad() { return especialidad; }
+    public void setEspecialidad(String especialidad) { this.especialidad = especialidad; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getMedico() { return medico; }
+    public void setMedico(String medico) { this.medico = medico; }
 
-    public LocalDateTime getFechaAtencion() {
-        return fechaAtencion;
-    }
+    public String getDiagnostico() { return diagnostico; }
+    public void setDiagnostico(String diagnostico) { this.diagnostico = diagnostico; }
 
-    public void setFechaAtencion(LocalDateTime fechaAtencion) {
-        this.fechaAtencion = fechaAtencion;
-    }
-
-    public String getEspecialidad() {
-        return especialidad;
-    }
-
-    public void setEspecialidad(String especialidad) {
-        this.especialidad = especialidad;
-    }
-
-    public String getMedico() {
-        return medico;
-    }
-
-    public void setMedico(String medico) {
-        this.medico = medico;
-    }
-
-    public String getMotivo() {
-        return motivo;
-    }
-
-    public void setMotivo(String motivo) {
-        this.motivo = motivo;
-    }
-
-    public Paciente getPaciente() {
-        return paciente;
-    }
-
-    public void setPaciente(Paciente paciente) {
-        this.paciente = paciente;
-    }
+    public Paciente getPaciente() { return paciente; }
+    public void setPaciente(Paciente paciente) { this.paciente = paciente; }
 }

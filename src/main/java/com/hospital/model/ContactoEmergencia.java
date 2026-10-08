@@ -1,7 +1,8 @@
 package com.hospital.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "contactos_emergencia")
@@ -11,68 +12,34 @@ public class ContactoEmergencia {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @NotBlank(message = "El nombre del contacto es obligatorio")
+    @Column(name = "nombre_completo")
     private String nombreCompleto;
 
-    @Column(nullable = false)
+    @Column(name = "parentesco")
     private String parentesco;
 
-    @Column(nullable = false)
     private String telefono;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "paciente_id", nullable = false)
-    @JsonBackReference
+    /** N contactos -> 1 paciente. FK: contactos_emergencia.paciente_id -> pacientes.id */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "paciente_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_contacto_paciente"))
+    @JsonIgnore
     private Paciente paciente;
 
-    public ContactoEmergencia() {
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public ContactoEmergencia(Long id, String nombreCompleto, String parentesco, String telefono, Paciente paciente) {
-        this.id = id;
-        this.nombreCompleto = nombreCompleto;
-        this.parentesco = parentesco;
-        this.telefono = telefono;
-        this.paciente = paciente;
-    }
+    public String getNombreCompleto() { return nombreCompleto; }
+    public void setNombreCompleto(String nombreCompleto) { this.nombreCompleto = nombreCompleto; }
 
-    public Long getId() {
-        return id;
-    }
+    public String getParentesco() { return parentesco; }
+    public void setParentesco(String parentesco) { this.parentesco = parentesco; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
 
-    public String getNombreCompleto() {
-        return nombreCompleto;
-    }
-
-    public void setNombreCompleto(String nombreCompleto) {
-        this.nombreCompleto = nombreCompleto;
-    }
-
-    public String getParentesco() {
-        return parentesco;
-    }
-
-    public void setParentesco(String parentesco) {
-        this.parentesco = parentesco;
-    }
-
-    public String getTelefono() {
-        return telefono;
-    }
-
-    public void setTelefono(String telefono) {
-        this.telefono = telefono;
-    }
-
-    public Paciente getPaciente() {
-        return paciente;
-    }
-
-    public void setPaciente(Paciente paciente) {
-        this.paciente = paciente;
-    }
+    public Paciente getPaciente() { return paciente; }
+    public void setPaciente(Paciente paciente) { this.paciente = paciente; }
 }
