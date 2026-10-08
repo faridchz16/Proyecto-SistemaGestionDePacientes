@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citas - MedicalSys</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
+</head>
+<body class="cargando">
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main-wrapper">
+    <header class="top-header" id="topHeader"></header>
+    <div id="alertContainer"></div>
+
+    <div class="card-panel">
+        <div class="card-panel-header justify-content-between">
+            <span><i class="bi bi-calendar-check text-primary"></i> Agenda de citas</span>
+            <button class="btn btn-green" onclick="abrirNueva()"><i class="bi bi-calendar-plus"></i> Nueva cita</button>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3"><input type="date" id="fFecha" class="form-control" onchange="cargar()"></div>
+                <div class="col-md-3">
+                    <select id="fEstado" class="form-select" onchange="cargar()">
+                        <option value="">Todos los estados</option><option>PROGRAMADA</option><option>ATENDIDA</option><option>CANCELADA</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><select id="fMedico" class="form-select" onchange="cargar()"></select></div>
+                <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" onclick="limpiarFiltros()">Limpiar</button></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover border">
+                    <thead class="table-dark">
+                    <tr><th>Fecha y hora</th><th>Paciente</th><th>Médico</th><th>Especialidad</th><th>Motivo</th><th>Estado</th><th>Registrada por</th><th class="text-center">Acciones</th></tr>
+                    </thead>
+                    <tbody id="tbodyCitas"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="modalCita" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form onsubmit="guardar(event)">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="tituloModal">Nueva cita</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div id="alertModal"></div>
+                    <input type="hidden" id="citaId">
+                    <label class="form-label fw-semibold">Paciente *</label>
+                    <div class="input-group mb-2">
+                        <input id="qPaciente" class="form-control" placeholder="Buscar por documento o nombre" onkeydown="if(event.key==='Enter'){event.preventDefault(); buscarPaciente();}">
+                        <button type="button" class="btn btn-outline-primary" onclick="buscarPaciente()"><i class="bi bi-search"></i></button>
+                    </div>
+                    <select id="pacienteId" class="form-select mb-3" required>
+                        <option value="">— Busque y seleccione un paciente —</option>
+                    </select>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Médico *</label>
+                            <select id="medicoId" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Fecha y hora *</label>
+                            <input type="datetime-local" id="fechaHora" class="form-control" required step="900">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Especialidad *</label>
+                            <input id="especialidad" class="form-control" required maxlength="80" list="especialidades">
+                            <datalist id="especialidades">
+                                <option>Medicina General</option><option>Pediatría</option><option>Cardiología</option>
+                                <option>Ginecología</option><option>Traumatología</option><option>Dermatología</option>
+                            </datalist>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Motivo</label>
+                            <input id="motivo" class="form-control" maxlength="500">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
+<script>
+    let citas = [], medicos = [], modal;
+    const COLOR = { PROGRAMADA: 'primary', ATENDIDA: 'success', CANCELADA: 'secondary' };
+
+    (async () => {
+        const s = await App.iniciarLayout('CITAS', 'Gestión de Citas', 'Programación de citas médicas');
+        if (!s) return;
+        modal = new bootstrap.Modal(document.getElementById('modalCita'));
+        medicos = await App.api('/api/citas/medicos');
+        const opts = medicos.map(m => `<option value="${m.id}">${App.esc(m.nombreCompleto)}</option>`).join('');
+        document.getElementById('fMedico').innerHTML = '<option value="">Todos los médicos</option>' + opts;
+        document.getElementById('medicoId').innerHTML = '<option value="">Seleccione</option>' + opts;
+        await cargar();
+    })();
+
+    function limpiarFiltros() {
+        ['fFecha', 'fEstado', 'fMedico'].forEach(id => document.getElementById(id).value = '');
+        cargar();
+    }
+
+    async function cargar() {
+        const p = new URLSearchParams();
+        const f = document.getElementById('fFecha').value, e = document.getElementById('fEstado').value, m = document.getElementById('fMedico').value;
+        if (f) p.set('fecha', f);
+        if (e) p.set('estado', e);
+        if (m) p.set('medicoId', m);
+        try {
+            citas = await App.api('/api/citas?' + p);
+            const tbody = document.getElementById('tbodyCitas');
+            tbody.innerHTML = citas.length ? citas.map(c => {
+                const prog = c.estado === 'PROGRAMADA';
+                return `<tr>
+                  <td class="text-nowrap">${App.fechaHora(c.fechaHora)}</td>
+                  <td><b>${App.esc(c.pacienteDocumento)}</b><br><small>${App.esc(c.pacienteNombre)}</small></td>
+                  <td>${App.esc(c.medicoNombre)}</td>
+                  <td>${App.esc(c.especialidad)}</td>
+                  <td class="small">${App.esc(c.motivo)}</td>
+                  <td><span class="badge bg-${COLOR[c.estado]}">${c.estado}</span></td>
+                  <td class="small">${App.esc(c.creadoPor)}</td>
+                  <td class="text-center text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" title="Editar" ${prog ? '' : 'disabled'} onclick="abrirEditar(${c.id})"><i class="bi bi-pencil-square"></i></button>
+                    <button class="btn btn-sm btn-outline-success" title="Marcar atendida" ${prog ? '' : 'disabled'} onclick="cambiarEstado(${c.id}, 'ATENDIDA')"><i class="bi bi-check2-circle"></i></button>
+                    <button class="btn btn-sm btn-outline-warning" title="Cancelar cita" ${prog ? '' : 'disabled'} onclick="cambiarEstado(${c.id}, 'CANCELADA')"><i class="bi bi-x-circle"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" title="Eliminar" ${c.estado === 'ATENDIDA' ? 'disabled' : ''} onclick="eliminar(${c.id})"><i class="bi bi-trash"></i></button>
+                  </td></tr>`;
+            }).join('') : '<tr><td colspan="8" class="text-center text-muted">No hay citas para los filtros seleccionados.</td></tr>';
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+
+    async function buscarPaciente(seleccionId) {
+        const q = document.getElementById('qPaciente').value.trim();
+        try {
+            const lista = (await App.api('/api/pacientes' + (q ? '?q=' + encodeURIComponent(q) : '')))
+                .filter(p => p.estado !== 'INACTIVO');
+            document.getElementById('pacienteId').innerHTML =
+                `<option value="">${lista.length ? 'Seleccione (' + lista.length + ' encontrados)' : 'Sin resultados'}</option>` +
+                lista.map(p => `<option value="${p.id}">${App.esc(p.numeroDocumento)} — ${App.esc(p.apellidoPaterno)} ${App.esc(p.apellidoMaterno)}, ${App.esc(p.nombres)}</option>`).join('');
+            if (seleccionId) document.getElementById('pacienteId').value = seleccionId;
+            else if (lista.length === 1) document.getElementById('pacienteId').value = lista[0].id;
+        } catch (e) { App.alerta(e.message, 'danger', 'alertModal'); }
+    }
+
+    function minimoAhora() {
+        const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+        return d.toISOString().slice(0, 16);
+    }
+
+    function abrirNueva() {
+        document.querySelector('#modalCita form').reset();
+        document.getElementById('alertModal').innerHTML = '';
+        document.getElementById('citaId').value = '';
+        document.getElementById('tituloModal').textContent = 'Nueva cita';
+        document.getElementById('pacienteId').innerHTML = '<option value="">— Busque y seleccione un paciente —</option>';
+        document.getElementById('fechaHora').min = minimoAhora();
+        modal.show();
+    }
+
+    async function abrirEditar(id) {
+        const c = citas.find(x => x.id === id);
+        abrirNueva();
+        document.getElementById('tituloModal').textContent = `Editar cita #${c.id}`;
+        document.getElementById('citaId').value = c.id;
+        document.getElementById('qPaciente').value = c.pacienteDocumento;
+        await buscarPaciente(c.pacienteId);
+        document.getElementById('medicoId').value = c.medicoId;
+        document.getElementById('fechaHora').value = c.fechaHora.slice(0, 16);
+        document.getElementById('especialidad').value = c.especialidad;
+        document.getElementById('motivo').value = c.motivo || '';
+    }
+
+    async function guardar(ev) {
+        ev.preventDefault();
+        const id = document.getElementById('citaId').value;
+        const datos = {
+            pacienteId: Number(document.getElementById('pacienteId').value),
+            medicoId: Number(document.getElementById('medicoId').value),
+            fechaHora: document.getElementById('fechaHora').value,
+            especialidad: document.getElementById('especialidad').value.trim(),
+            motivo: document.getElementById('motivo').value.trim()
+        };
+        try {
+            await App.api(id ? `/api/citas/${id}` : '/api/citas', { method: id ? 'PUT' : 'POST', body: datos });
+            modal.hide();
+            App.alerta(id ? 'Cita actualizada.' : 'Cita registrada.');
+            await cargar();
+        } catch (e) { App.alerta(e.message, 'danger', 'alertModal'); }
+    }
+
+    async function cambiarEstado(id, estado) {
+        if (!confirm(`¿Marcar la cita #${id} como ${estado}?`)) return;
+        try {
+            await App.api(`/api/citas/${id}/estado?estado=${estado}`, { method: 'PATCH' });
+            App.alerta(`Cita marcada como ${estado}.`);
+            await cargar();
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+
+    async function eliminar(id) {
+        if (!confirm(`¿Eliminar definitivamente la cita #${id}?`)) return;
+        try {
+            await App.api(`/api/citas/${id}`, { method: 'DELETE' });
+            App.alerta('Cita eliminada.');
+            await cargar();
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+</script>
+</body>
+</html>

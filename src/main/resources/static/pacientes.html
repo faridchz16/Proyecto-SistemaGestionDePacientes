@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacientes - MedicalSys</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
+</head>
+<body class="cargando">
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main-wrapper">
+    <header class="top-header" id="topHeader"></header>
+    <div id="alertContainer"></div>
+
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item"><button class="nav-link active" id="tabBtnListado" onclick="mostrarTab('listado')"><i class="bi bi-list-ul"></i> Listado</button></li>
+        <li class="nav-item"><button class="nav-link" id="tabBtnFormulario" onclick="mostrarTab('formulario')"><i class="bi bi-person-plus-fill"></i> <span id="tabFormTexto">Registrar paciente</span></button></li>
+    </ul>
+
+    <section id="tab-listado" class="tab-section active">
+        <div class="card-panel">
+            <div class="card-panel-header"><i class="bi bi-person-vcard text-primary"></i> Pacientes registrados</div>
+            <div class="card-body p-4">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-8">
+                        <input type="search" id="q" class="form-control" placeholder="Buscar por N° de documento o nombre" onkeydown="if(event.key==='Enter') buscar()">
+                    </div>
+                    <div class="col-md-4 d-grid">
+                        <button class="btn btn-primary fw-semibold" onclick="buscar()"><i class="bi bi-search"></i> Buscar</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover border">
+                        <thead class="table-dark">
+                        <tr><th>ID</th><th>Documento</th><th>Paciente</th><th>Sexo</th><th>Teléfono</th><th>Contacto de emergencia</th><th>Estado</th><th class="text-center">Acciones</th></tr>
+                        </thead>
+                        <tbody id="tbodyPacientes"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tab-formulario" class="tab-section">
+        <div class="card-panel">
+            <div class="card-panel-header" id="tituloFormulario"><i class="bi bi-person-fill-add text-success"></i> Formulario de registro de paciente</div>
+            <div class="card-body p-4">
+                <form id="formPaciente" onsubmit="guardar(event)">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Tipo Doc. *</label>
+                            <select id="tipoDocumento" class="form-select" required>
+                                <option value="DNI">DNI</option><option value="PASAPORTE">Pasaporte</option><option value="CEX">Carnet Extranjería</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">N° Documento *</label>
+                            <input type="text" id="numeroDocumento" class="form-control" required minlength="8" maxlength="20">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Nombres *</label>
+                            <input type="text" id="nombres" class="form-control" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Sexo *</label>
+                            <select id="sexo" class="form-select" required>
+                                <option value="" disabled selected>Seleccione</option><option>Masculino</option><option>Femenino</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Apellido paterno *</label><input type="text" id="apellidoPaterno" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Apellido materno *</label><input type="text" id="apellidoMaterno" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Fecha de nacimiento *</label><input type="date" id="fechaNacimiento" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Teléfono</label><input type="text" id="telefono" class="form-control"></div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Correo</label><input type="email" id="correo" class="form-control"></div>
+                        <div class="col-md-4"><label class="form-label fw-semibold">Dirección</label><input type="text" id="direccion" class="form-control"></div>
+                    </div>
+
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-secondary m-0"><i class="bi bi-shield-plus"></i> Contactos de emergencia (relación 1 a N)</h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarContacto()"><i class="bi bi-plus"></i> Agregar contacto</button>
+                    </div>
+                    <div id="contactos"></div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" id="btnGuardar" class="btn btn-green">Guardar paciente</button>
+                        <button type="button" class="btn btn-secondary" onclick="limpiarFormulario(); mostrarTab('listado')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
+<script>
+    let pacientes = [], editandoId = null;
+    const CAMPOS = ['tipoDocumento', 'numeroDocumento', 'nombres', 'sexo', 'apellidoPaterno', 'apellidoMaterno',
+                    'fechaNacimiento', 'telefono', 'correo', 'direccion'];
+
+    (async () => {
+        const s = await App.iniciarLayout('PACIENTES', 'Gestión de Pacientes', 'Registro, edición y estado de pacientes');
+        if (!s) return;
+        document.getElementById('fechaNacimiento').max = new Date().toISOString().slice(0, 10);
+        await buscar();
+    })();
+
+    function mostrarTab(t) {
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('tab-' + t).classList.add('active');
+        document.getElementById('tabBtnListado').classList.toggle('active', t === 'listado');
+        document.getElementById('tabBtnFormulario').classList.toggle('active', t === 'formulario');
+    }
+
+    async function buscar() {
+        try {
+            const q = document.getElementById('q').value.trim();
+            pacientes = await App.api('/api/pacientes' + (q ? '?q=' + encodeURIComponent(q) : ''));
+            const tbody = document.getElementById('tbodyPacientes');
+            if (!pacientes.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No se encontraron pacientes.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = pacientes.map(p => {
+                const activo = p.estado !== 'INACTIVO';
+                const c = (p.contactosEmergencia || [])[0];
+                return `<tr class="${activo ? '' : 'text-muted'}">
+                  <td>${p.id}</td>
+                  <td>${App.esc(p.tipoDocumento)} ${App.esc(p.numeroDocumento)}</td>
+                  <td class="fw-semibold">${App.esc(p.apellidoPaterno)} ${App.esc(p.apellidoMaterno)}, ${App.esc(p.nombres)}</td>
+                  <td>${App.esc(p.sexo)}</td>
+                  <td>${App.esc(p.telefono)}</td>
+                  <td class="small">${c ? `${App.esc(c.nombreCompleto)} (${App.esc(c.parentesco)})` : '<span class="text-muted">—</span>'}
+                      ${(p.contactosEmergencia || []).length > 1 ? `<span class="badge bg-light text-dark border">+${p.contactosEmergencia.length - 1}</span>` : ''}</td>
+                  <td>${activo ? '<span class="badge bg-success">ACTIVO</span>' : '<span class="badge bg-secondary">INACTIVO</span>'}</td>
+                  <td class="text-center text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" title="Editar" onclick="editar(${p.id})"><i class="bi bi-pencil-square"></i></button>
+                    ${activo
+                      ? `<button class="btn btn-sm btn-outline-danger" title="Desactivar" onclick="cambiarEstado(${p.id}, false)"><i class="bi bi-person-x"></i></button>`
+                      : `<button class="btn btn-sm btn-outline-success" title="Activar" onclick="cambiarEstado(${p.id}, true)"><i class="bi bi-person-check"></i></button>`}
+                  </td></tr>`;
+            }).join('');
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+
+    function agregarContacto(c = {}) {
+        const div = document.createElement('div');
+        div.className = 'row g-2 mb-2 contacto';
+        div.innerHTML = `
+          <div class="col-md-5"><input class="form-control c-nombre" placeholder="Nombre completo" required value="${App.esc(c.nombreCompleto)}"></div>
+          <div class="col-md-3"><input class="form-control c-parentesco" placeholder="Parentesco" value="${App.esc(c.parentesco)}"></div>
+          <div class="col-md-3"><input class="form-control c-telefono" placeholder="Teléfono" value="${App.esc(c.telefono)}"></div>
+          <div class="col-md-1 d-grid"><button type="button" class="btn btn-outline-danger" title="Quitar" onclick="this.closest('.contacto').remove()"><i class="bi bi-trash"></i></button></div>`;
+        document.getElementById('contactos').appendChild(div);
+    }
+
+    function limpiarFormulario() {
+        editandoId = null;
+        document.getElementById('formPaciente').reset();
+        document.getElementById('contactos').innerHTML = '';
+        document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-person-fill-add text-success"></i> Formulario de registro de paciente';
+        document.getElementById('tabFormTexto').textContent = 'Registrar paciente';
+        const b = document.getElementById('btnGuardar');
+        b.textContent = 'Guardar paciente'; b.className = 'btn btn-green';
+    }
+
+    function editar(id) {
+        const p = pacientes.find(x => x.id === id);
+        limpiarFormulario();
+        editandoId = id;
+        CAMPOS.forEach(c => document.getElementById(c).value = p[c] || '');
+        (p.contactosEmergencia || []).forEach(agregarContacto);
+        document.getElementById('tituloFormulario').innerHTML = `<i class="bi bi-pencil-square text-warning"></i> Editar paciente (ID: ${p.id})`;
+        document.getElementById('tabFormTexto').textContent = 'Editar paciente';
+        const b = document.getElementById('btnGuardar');
+        b.textContent = 'Actualizar paciente'; b.className = 'btn btn-warning fw-bold';
+        mostrarTab('formulario');
+    }
+
+    async function guardar(ev) {
+        ev.preventDefault();
+        const datos = {};
+        CAMPOS.forEach(c => datos[c] = document.getElementById(c).value.trim() || null);
+        datos.contactosEmergencia = [...document.querySelectorAll('#contactos .contacto')].map(d => ({
+            nombreCompleto: d.querySelector('.c-nombre').value.trim(),
+            parentesco: d.querySelector('.c-parentesco').value.trim(),
+            telefono: d.querySelector('.c-telefono').value.trim()
+        }));
+        try {
+            await App.api(editandoId ? `/api/pacientes/${editandoId}` : '/api/pacientes',
+                { method: editandoId ? 'PUT' : 'POST', body: datos });
+            App.alerta(editandoId ? 'Paciente actualizado correctamente.' : 'Paciente registrado correctamente.');
+            limpiarFormulario();
+            mostrarTab('listado');
+            await buscar();
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+
+    async function cambiarEstado(id, activo) {
+        if (!confirm(`¿Desea ${activo ? 'activar' : 'desactivar'} al paciente con ID ${id}?`)) return;
+        try {
+            await App.api(`/api/pacientes/${id}/estado?activo=${activo}`, { method: 'PATCH' });
+            App.alerta(`Paciente ${activo ? 'activado' : 'desactivado'} correctamente.`);
+            await buscar();
+        } catch (e) { App.alerta(e.message, 'danger'); }
+    }
+</script>
+</body>
+</html>
